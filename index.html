@@ -17,7 +17,7 @@
 @media(min-width:600px){.app{padding-left:35px;padding-right:35px}.hero-title .month{font-size:62px}.hero-title .year{font-size:30px}.day{height:74px}}
 .first-run{margin:22px 0 12px;border:1px solid #2c4b3f;background:linear-gradient(145deg,#0b1511,#0a0e0c);border-radius:20px;padding:20px}.first-run h3{margin:0;font-size:20px}.first-run p{color:#8f9a95;font-size:12px;line-height:1.55;margin:8px 0 16px}.first-run button{width:100%;border:0;border-radius:14px;padding:14px;background:var(--mint);color:#06100c;font-weight:800}.first-run.hidden{display:none!important}</style></head><body>
 <script id="baseData" type="application/json">[]</script><script id="routeData" type="application/json">{}</script>
-<div class="app"><div class="topbar"><div class="brand">MY FITNESS ARCHIVE <span style="color:#5e6a65;font-weight:500;letter-spacing:.08em">v5.7</span></div><div class="top-actions"><button class="pill" id="todayBtn">이번 달</button><button class="round" id="settingsBtn" aria-label="설정">⋯</button><button class="round mint" id="addBtn" aria-label="운동 추가">＋</button></div></div>
+<div class="app"><div class="topbar"><div class="brand">MY FITNESS ARCHIVE <span style="color:#5e6a65;font-weight:500;letter-spacing:.08em">v5.8</span></div><div class="top-actions"><button class="pill" id="todayBtn">이번 달</button><button class="round" id="settingsBtn" aria-label="설정">⋯</button><button class="round mint" id="addBtn" aria-label="운동 추가">＋</button></div></div>
 <section class="hero"><div class="month-nav"><h1 class="hero-title"><span class="month" id="monthLabel"></span><span class="year" id="yearLabel"></span></h1><div class="navs"><button class="navbtn" id="prev">‹</button><button class="navbtn" id="next">›</button></div></div><div class="recap" id="recapCharts"><div class="mini-chart"><div class="chart-head"><div class="chart-label">DAYS</div><div class="chart-current"><span class="chart-value" id="daysTotal">0</span><span class="chart-unit">DAYS</span></div></div><div class="chart-bars" id="daysChart"></div></div><div class="mini-chart"><div class="chart-head"><div class="chart-label">TIME</div><div class="chart-current"><span class="chart-value" id="hoursTotal">0</span><span class="chart-unit">HRS</span></div></div><div class="chart-bars" id="hoursChart"></div></div><div class="mini-chart"><div class="chart-head"><div class="chart-label">DISTANCE</div><div class="chart-current"><span class="chart-value" id="distanceTotal">0</span><span class="chart-unit">KM</span></div></div><div class="chart-bars" id="distanceChart"></div></div><div class="mini-chart"><div class="chart-head"><div class="chart-label">ENERGY</div><div class="chart-current"><span class="chart-value" id="kcalTotal">0</span><span class="chart-unit">KCAL</span></div></div><div class="chart-bars" id="energyChart"></div></div></div></section>
 <section class="calendar-wrap" id="calendarWrap"><div class="calendar-head"><h2>월간 운동</h2><div class="calendar-tools"><div class="count" id="activityCount"></div><div class="filter-rail" id="typeFilters" aria-label="운동 종류 필터"></div></div></div><div class="weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="calendar" id="calendar"></div></section>
 <section id="firstRun" class="first-run hidden"><h3>개인 운동 데이터 불러오기</h3><p>GitHub에는 앱 화면만 있습니다. 아이폰에 보관한 <b>fitness_data.json</b>을 처음 한 번 선택하면 기록과 GPS 경로가 이 Safari에만 저장됩니다.</p><button id="firstImport">fitness_data.json 선택</button></section><section><div class="history-head"><div><div class="section-kicker">ACTIVITY LOG</div><h2 id="historyTitle"></h2></div><div class="total" id="eventCount"></div></div><div id="history" class="history"></div></section></div>
@@ -38,54 +38,56 @@
 <div class="toast" id="toast"></div>
 <script>
 'use strict';
-const BASE_EVENTS=JSON.parse(document.getElementById('baseData').textContent);let ROUTES=JSON.parse(document.getElementById('routeData').textContent);const STORAGE_KEY='fitness_archive_private_data_v2';const TYPES=['헬스/웨이트','클라이밍','하이킹/등산','트레킹','걷기/산책','러닝','라이딩','수영','암벽등반','멀티스포츠','계단','농구','기타'];
-let storageOK=true;let EVENTS=loadSaved();let activeFilter=null;let activeEventId=null;let editingId=null;let selected=null;let sheetFromCalendar=false;let sheetAnchorDate=null;let scrollAnim=null;let now=new Date();let latest=EVENTS.reduce((a,e)=>e.date>a?e.date:a,'2026-08-01');let [ly,lm]=latest.split('-').map(Number);let current=new Date(ly,lm-1,1);
+const BASE_EVENTS=JSON.parse(document.getElementById('baseData').textContent);let ROUTES=JSON.parse(document.getElementById('routeData').textContent);const STORAGE_KEY='fitness_archive_private_data_v2';const TYPES=['헬스/웨이트','클라이밍','등산/트레킹','걷기/산책','러닝','라이딩','실내 사이클링','수영','암벽등반','멀티스포츠','계단','농구','기타'];
+let storageOK=true;let EVENTS=normalizeEvents(loadSaved());let activeFilter=null;let activeEventId=null;let editingId=null;let selected=null;let sheetFromCalendar=false;let sheetAnchorDate=null;let scrollAnim=null;let now=new Date();let latest=EVENTS.reduce((a,e)=>e.date>a?e.date:a,'2026-08-01');let [ly,lm]=latest.split('-').map(Number);let current=new Date(ly,lm-1,1);
 const byId=id=>document.getElementById(id);const monthLabel=byId('monthLabel'),yearLabel=byId('yearLabel'),historyTitle=byId('historyTitle'),daysTotal=byId('daysTotal'),activityCount=byId('activityCount'),eventCount=byId('eventCount'),hoursTotal=byId('hoursTotal'),distanceTotal=byId('distanceTotal'),kcalTotal=byId('kcalTotal'),daysChart=byId('daysChart'),hoursChart=byId('hoursChart'),distanceChart=byId('distanceChart'),energyChart=byId('energyChart'),calendarWrap=byId('calendarWrap'),calendar=byId('calendar'),typeFilters=byId('typeFilters'),historyEl=byId('history'),firstRun=byId('firstRun'),daySheetDate=byId('daySheetDate'),daySheetTitle=byId('daySheetTitle'),daySheetHint=byId('daySheetHint'),daySheetBody=byId('daySheetBody'),daySheet=byId('daySheet'),detailDate=byId('detailDate'),detailTitle=byId('detailTitle'),detailBody=byId('detailBody'),detailSheet=byId('detailSheet'),overlay=byId('overlay'),fType=byId('fType'),fDate=byId('fDate'),fTitle=byId('fTitle'),fStart=byId('fStart'),fEnd=byId('fEnd'),fMinutes=byId('fMinutes'),fKcal=byId('fKcal'),fDistance=byId('fDistance'),fAvgHr=byId('fAvgHr'),fMaxHr=byId('fMaxHr'),fGymBrand=byId('fGymBrand'),fGymBranch=byId('fGymBranch'),fGrades=byId('fGrades'),fNote=byId('fNote'),editTitle=byId('editTitle'),editKicker=byId('editKicker'),deleteBtn=byId('deleteBtn'),editSheet=byId('editSheet'),storageStatus=byId('storageStatus'),prev=byId('prev'),next=byId('next'),todayBtn=byId('todayBtn'),addBtn=byId('addBtn'),settingsBtn=byId('settingsBtn'),settingsSheet=byId('settingsSheet'),editBtn=byId('editBtn'),editForm=byId('editForm'),fileInput=byId('fileInput'),firstImport=byId('firstImport');
-function clone(x){return JSON.parse(JSON.stringify(x))}function loadSaved(){try{let s=localStorage.getItem(STORAGE_KEY);if(!s)return clone(BASE_EVENTS);let p=JSON.parse(s);if(Array.isArray(p))return p;if(p&&Array.isArray(p.events)){ROUTES=(p.routes&&typeof p.routes==='object')?p.routes:{};return p.events}return clone(BASE_EVENTS)}catch(e){storageOK=false;return clone(BASE_EVENTS)}}
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function normalizeType(t){t=String(t||'기타').trim();if(t==='하이킹/등산'||t==='트레킹'||t==='하이킹'||t==='등산')return '등산/트레킹';return t}
+function normalizeEvents(arr){return (Array.isArray(arr)?arr:[]).map(function(e){let x={...e};x.type=normalizeType(x.type);if((x.title==='하이킹/등산'||x.title==='트레킹'||x.title==='하이킹'||x.title==='등산')&&x.type==='등산/트레킹')x.title='등산/트레킹';return x})}
+function loadSaved(){try{let s=localStorage.getItem(STORAGE_KEY);if(!s)return clone(BASE_EVENTS);let p=JSON.parse(s);if(Array.isArray(p))return p;if(p&&Array.isArray(p.events)){ROUTES=(p.routes&&typeof p.routes==='object')?p.routes:{};return p.events}return clone(BASE_EVENTS)}catch(e){storageOK=false;return clone(BASE_EVENTS)}}
 function saveLocal(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({schema:2,events:EVENTS,routes:ROUTES}));storageOK=true;return true}catch(e){storageOK=false;return false}}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function num(v){return v===''||v==null?null:Number(v)}function pad(n){return String(n).padStart(2,'0')}function monthKey(){return current.getFullYear()+'-'+pad(current.getMonth()+1)}function fmtMin(m){if(m==null||Number.isNaN(m))return '시간 미기록';let h=Math.floor(m/60),mi=Math.round(m%60);return h?`${h}시간 ${mi?mi+'분':''}`:`${mi}분`}function weekday(date){return ['일','월','화','수','목','금','토'][new Date(date+'T00:00:00').getDay()]}
-function typeShort(t){return {'헬스/웨이트':'웨','클라이밍':'클','하이킹/등산':'등','트레킹':'트','걷기/산책':'걷','러닝':'런','라이딩':'라','수영':'수','암벽등반':'암','멀티스포츠':'3종','계단':'계','농구':'농','기타':'기'}[t]||t.slice(0,1)}
+function typeShort(t){return {'헬스/웨이트':'웨','클라이밍':'클','등산/트레킹':'산','걷기/산책':'걷','러닝':'런','라이딩':'라','실내 사이클링':'실','수영':'수','암벽등반':'암','멀티스포츠':'3종','계단':'계','농구':'농','기타':'기'}[normalizeType(t)]||String(t||'기타').slice(0,1)}
 function svgIcon(t){
+  t=normalizeType(t);
   let i='';
-  if(t==='수영'){
-    // 승인한 선형 자유형 수영 아이콘
-    i='<circle cx="17.2" cy="8.1" r="1.65"/><path d="M3.2 13.2c2.4 0 3.5-2.7 5.8-2.7 2 0 3.2 1.8 5 2.2 1.5.4 3-.1 4.7-1.5M9 10.7l3.7-3.6 3.1 1.3M2.8 16.3c1.7 0 1.7 1.2 3.4 1.2s1.7-1.2 3.4-1.2 1.7 1.2 3.4 1.2 1.7-1.2 3.4-1.2 1.7 1.2 3.4 1.2M4 19.5c1.4 0 1.4 1 2.8 1s1.4-1 2.8-1 1.4 1 2.8 1 1.4-1 2.8-1 1.4 1 2.8 1"/>';
-  }else if(t==='실내 사이클링'){
-    // 고정식 스핀 바이크
-    i='<circle cx="12.5" cy="4.2" r="1.65"/><path d="M11.4 6.6l-2.1 3.5 2.8 2.2 2.1-2.7 2.4 1M9.3 10.1l-1.2 5.7m4-3.5 3.9 3.4M14.2 9.6l1.1-2.1M5 19.4h14M7.1 17.7h9.8M7.4 17.5c.4-3.4 2.1-5.4 4.7-5.4 2.7 0 4.4 2 4.7 5.4"/><circle cx="12.1" cy="17.3" r="1.8"/>';
-  }else if(t==='라이딩'){
-    // 실외 사이클링
-    i='<circle cx="6.1" cy="16.8" r="3.7"/><circle cx="18" cy="16.8" r="3.7"/><circle cx="13.7" cy="4.5" r="1.6"/><path d="M12.5 6.9l-2.5 3.4 3 2.1 2.2-2.8 2.8 1M10 10.3l-3.9 6.5m6.9-4.4 5 4.4M13 12.4l1.9-5.5"/>';
-  }else if(t==='헬스/웨이트'){
-    // 손 높이에 바벨을 든 사람
-    i='<circle cx="12" cy="4.2" r="1.65"/><path d="M12 6.7v5.1M9.2 8.8l.9 3.1m4.7-3.1-.9 3.1M9.7 12l-1.5 7m6.1-7 1.5 7M5.3 11.9h13.4M5.3 9.7v4.4m-2-3.3v2.2m15.4-3.3v4.4m2-3.3v2.2"/>';
-  }else if(t==='걷기/산책'){
-    // 왼쪽으로 걷는 사람
-    i='<circle cx="13.5" cy="4.3" r="1.65"/><path d="M12.7 6.7l-2.1 4.2-3.5 1.8M10.6 10.9l3.1 2.1 3-.8M10.5 10.9l-2 5.1-3.3 2.8m8.5-5.8 1.5 4.7 2.7 1.4"/>';
-  }else if(t==='하이킹/등산'){
-    // 배낭과 스틱을 든 하이커
-    i='<circle cx="9.4" cy="4.2" r="1.6"/><path d="M8.8 6.7l-2 4.2 2.8 2.2 2.2-3.8 2.6 1.3M6.8 10.8l-2.5 1M9.6 13.1l-2.5 6m2.5-6 2.5 2.3 2 3.7M15.6 9.4l1.8 9.5M6.1 7.1l-1.5 4.3"/><path d="M5.2 7.2c-.55 1.35-.55 2.8 0 4.2"/>';
-  }else if(t==='트레킹'){
-    // 산 능선/트레킹
-    i='<path d="M2.8 19.1 8.5 10l3.1 4 2.7-3.2 6.9 8.3M8.5 10l1.4 1.8 1.1-1.3 1.4 1.4M15.6 7.2v4.4m0-4.4 3 1.1-3 1.1"/>';
-  }else if(t==='러닝'){
-    i='<circle cx="13.8" cy="4.2" r="1.65"/><path d="M12.7 6.8l-2.4 4.2 3.2 2.2 2.5-3.1 3.2 1M10.3 11l-3 3.5-3.4 1.2m9.6-2.5 2.1 3.1-1.4 4m-6.9-5.8-2.4 4"/>';
+  if(t==='헬스/웨이트'){
+    // 가장 작은 크기에서도 읽히는 덤벨
+    i='<path d="M3.5 9v6M6.5 7.5v9M17.5 7.5v9M20.5 9v6M6.5 12h11"/>';
   }else if(t==='클라이밍'){
-    // 수직 벽의 홀드를 잡는 클라이머
-    i='<path d="M20.2 2.2v19.6"/><circle cx="18.5" cy="5" r=".8" fill="currentColor" stroke="none"/><circle cx="18.9" cy="9.9" r=".8" fill="currentColor" stroke="none"/><circle cx="18.2" cy="15" r=".8" fill="currentColor" stroke="none"/><circle cx="19" cy="19" r=".8" fill="currentColor" stroke="none"/><circle cx="10.4" cy="5" r="1.6"/><path d="M10.1 7.4l2.5 3.2 2.1-2.7 3.3-2.5M12.6 10.6 9 13.4l-3.1-.8m6.7-2 1.3 4-2.1 4.6M9 13.4l-1.6 4.7"/>';
-  }else if(t==='암벽등반'){
-    // 클라이밍 + 로프
-    i='<path d="M20.2 2.2v19.6"/><circle cx="18.5" cy="5" r=".8" fill="currentColor" stroke="none"/><circle cx="18.9" cy="10" r=".8" fill="currentColor" stroke="none"/><circle cx="10.4" cy="5" r="1.6"/><path d="M10.1 7.4l2.5 3.2 2.1-2.7 3.3-2.5M12.6 10.6 9 13.4l-3.1-.8m6.7-2 1.3 4-2.1 4.6M9 13.4l-1.6 4.7M10.4 6.6c-1 5.3-.4 9.5 1.9 14"/>';
+    // 볼더링 홀드 + 볼트 구멍
+    i='<path d="M6.1 15.9c-1.7-1.3-2-3.8-.7-5.6 1.6-2.2 5.1-3.5 8.2-2.8 2.6.6 4.2 2.7 3.7 4.9-.5 2.2-2.8 4-5.8 4.5-2.2.3-4.2-.1-5.4-1Z"/><circle cx="12.2" cy="11.7" r="1.15"/>';
+  }else if(t==='수영'){
+    // 물결만 남겨 작은 달력에서도 즉시 식별
+    i='<path d="M2.5 8.5c2 0 2-1.4 4-1.4s2 1.4 4 1.4 2-1.4 4-1.4 2 1.4 4 1.4 2-1.4 4-1.4M2.5 12.3c2 0 2-1.4 4-1.4s2 1.4 4 1.4 2-1.4 4-1.4 2 1.4 4 1.4 2-1.4 4-1.4M2.5 16.1c2 0 2-1.4 4-1.4s2 1.4 4 1.4 2-1.4 4-1.4 2 1.4 4 1.4 2-1.4 4-1.4"/>';
+  }else if(t==='등산/트레킹'){
+    // 하이킹·등산·트레킹 공통 산 능선
+    i='<path d="M2.5 18.5 8.4 8.8l3.3 4.4 2.7-3.4 7.1 8.7H2.5Z"/><path d="M7 11.2l1.4 1.8 1.3-1.5 1.3 1.5M13 11.6l1.4 1.7 1.5-1.8 1.7 2"/>';
+  }else if(t==='걷기/산책'){
+    // 단순 보행 인물
+    i='<circle cx="13.5" cy="4.4" r="1.55"/><path d="M12.7 6.8 10.4 11l-3.2 1.6M10.4 11l3.2 2.1 3-.8M10.3 11l-2 5-3.1 2.8m8.4-5.7 1.5 4.5 2.7 1.5"/>';
+  }else if(t==='러닝'){
+    i='<circle cx="14" cy="4.2" r="1.5"/><path d="M12.8 6.8 10.4 11l3.1 2.1 2.6-3.1 3.2 1M10.4 11l-3 3.6-3.5 1.1m9.6-2.6 2.1 3.1-1.4 4M7.4 14.6 5 18.6"/>';
+  }else if(t==='라이딩'){
+    // 자전거만으로 단순화
+    i='<circle cx="6.2" cy="16.8" r="3.5"/><circle cx="17.8" cy="16.8" r="3.5"/><path d="M6.2 16.8 10 10h4l3.8 6.8M10 10l4.3 6.8M8.7 12.3h7.1M12.8 7.4h3.1M10 10 8.6 7.7"/>';
+  }else if(t==='실내 사이클링'){
+    // 고정식 실내 자전거
+    i='<circle cx="13.2" cy="15.7" r="3.4"/><path d="M4 19.2h16M9.8 19.2l1.5-7.1h4.1l1.8 7.1M11.3 12.1 9.7 8.6M9 8.6h2.3M15.4 12.1l2.5-3.5M17.2 8.6h2.2M13.2 15.7l2.2-3.6"/>';
   }else if(t==='계단'){
-    i='<circle cx="11" cy="4.3" r="1.6"/><path d="M10.3 6.8 8.9 10l2.4 2.2 2.3-2.3 2.3 1M8.9 10l-2.4 3.4m4.8-1.2 1.3 3-1.8 3.5M14 19h2.4v-3H19v-3h2.2"/>';
+    // 사람 없이 계단 자체만
+    i='<path d="M3 19h4.5v-4h4.5v-4h4.5V7H21"/>';
+  }else if(t==='암벽등반'){
+    // 야외 암벽: 크랙이 있는 수직 암벽
+    i='<path d="M19.5 2.5v19M19.5 6l-2 1.6 1.5 2.1-2.1 2.1 1.8 2.4-2.2 2.2 1.8 2.3"/><path d="M6 19.5l5-7 2.4 3.1 2-2.5"/>';
   }else if(t==='멀티스포츠'){
-    i='<path d="M2.7 6.9c1.2 0 1.2.9 2.4.9s1.2-.9 2.4-.9M9.6 16.8l2.3-4h2.4l2.4 4m-4.8-4-1.2-2M17 6.7l-1.5 2.5 2.1 1.5 1.8-2.2"/><circle cx="11.5" cy="18" r="2.1"/><circle cx="19" cy="18" r="2.1"/>';
+    // 세 종목을 의미하는 연결된 세 원
+    i='<circle cx="6" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="18" cy="12" r="2.2"/><path d="M8.2 12h1.6m4.4 0h1.6"/>';
   }else if(t==='농구'){
     i='<circle cx="12" cy="12" r="7"/><path d="M5.5 9.5h13M5.5 14.5h13M12 5c-2 2-2 12 0 14M12 5c2 2 2 12 0 14"/>';
   }else{
-    // 기타: 우측 방향 화살표
     i='<path d="M4 12h14m-5-5 5 5-5 5"/>';
   }
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${i}</svg>`
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${i}</svg>`
 }
 function get12MonthStats(){let out=[];for(let offset=12;offset>=0;offset--){let d=new Date(current.getFullYear(),current.getMonth()-offset,1),y=d.getFullYear(),m=d.getMonth(),key=y+'-'+pad(m+1),ev=EVENTS.filter(function(e){return (e.month||String(e.date||'').slice(0,7))===key}),dates=new Set(ev.map(function(e){return e.date})),mins=ev.reduce(function(a,e){return a+(Number(e.minutes)||0)},0),dist=ev.reduce(function(a,e){return a+(Number(e.distance)||0)},0),energy=ev.reduce(function(a,e){return a+(Number(e.kcal)||0)},0);out.push({key:key,year:y,month:m+1,days:dates.size,hours:mins/60,distance:dist,energy:energy})}return out}
 function renderMiniChart(el,stats,field){if(!el)return;let vals=stats.map(function(x){return Number(x[field])||0}),max=Math.max.apply(null,vals.concat([0]));el.innerHTML=stats.map(function(x,i){let v=vals[i],h=max>0?Math.max(v>0?3:1,Math.round(v/max*35)):1,cur=i===stats.length-1,prior=i===0,cls='chart-col'+(prior?' prior-year':'')+(cur?' current':'');return '<div class="'+cls+'" title="'+esc(x.key)+'"><div class="bar-track"><div class="chart-bar" style="height:'+h+'px"></div></div><div class="month-tick">'+x.month+'</div></div>'}).join('')}
@@ -240,8 +242,8 @@ function showSheet(el){
   document.body.style.overflow='hidden';
 }function closeSheets(){let returnToCalendar=sheetFromCalendar;if(overlay)overlay.classList.add('hidden');document.querySelectorAll('.sheet').forEach(function(x){x.classList.add('hidden')});document.body.style.overflow='';activeEventId=null;editingId=null;sheetFromCalendar=false;sheetAnchorDate=null;if(returnToCalendar)setTimeout(scrollCalendarHome,25)}
 function fillTypes(){fType.innerHTML=TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}function toggleFields(){let climb=fType.value==='클라이밍';document.querySelectorAll('.climb-only').forEach(x=>x.classList.toggle('hidden',!climb));document.querySelectorAll('.non-climb').forEach(x=>x.classList.toggle('hidden',climb))}
-function openEditor(id=null){editingId=id;let e=id?EVENTS.find(x=>x.id===id):{date:isoToday(),type:'헬스/웨이트',title:'헬스/웨이트',start:'',end:'',minutes:null,kcal:null,distance:null,avgHr:null,maxHr:null,gymBrand:'',gymBranch:'',grades:[],note:''};editTitle.textContent=id?'운동 편집':'운동 추가';editKicker.textContent=id?'ACTIVITY EDITOR':'NEW ACTIVITY';deleteBtn.classList.toggle('hidden',!id);fDate.value=e.date||isoToday();fType.value=e.type||'헬스/웨이트';fTitle.value=e.title||'';fStart.value=e.start||'';fEnd.value=e.end||'';fMinutes.value=e.minutes??'';fKcal.value=e.kcal??'';fDistance.value=e.distance??'';fAvgHr.value=e.avgHr??'';fMaxHr.value=e.maxHr??'';fGymBrand.value=e.gymBrand||'';fGymBranch.value=e.gymBranch||'';fGrades.value=(e.grades||[]).join(' ');fNote.value=e.note||'';toggleFields();showSheet(editSheet)}
-function makeId(){return 'USR'+Date.now().toString(36).toUpperCase()}function saveForm(ev){ev.preventDefault();let old=editingId?EVENTS.find(x=>x.id===editingId):null,date=fDate.value,type=fType.value,obj=old?{...old}:{id:makeId(),source:'Manual',merge:'',review:false,gps:false,health:'',insta:'',grades:[]};obj.date=date;obj.month=date.slice(0,7);obj.weekday=weekday(date);obj.type=type;obj.title=fTitle.value.trim()||type;obj.start=fStart.value;obj.end=fEnd.value;obj.minutes=num(fMinutes.value);obj.kcal=type==='클라이밍'?null:num(fKcal.value);obj.distance=type==='클라이밍'?null:num(fDistance.value);obj.avgHr=type==='클라이밍'?null:num(fAvgHr.value);obj.maxHr=type==='클라이밍'?null:num(fMaxHr.value);obj.gymBrand=type==='클라이밍'?fGymBrand.value.trim():'';obj.gymBranch=type==='클라이밍'?fGymBranch.value.trim():'';obj.grades=type==='클라이밍'?fGrades.value.split(/[\s,]+/).map(x=>x.trim()).filter(Boolean):[];obj.note=fNote.value.trim();if(old){EVENTS[EVENTS.findIndex(x=>x.id===old.id)]=obj}else EVENTS.push(obj);saveLocal();current=new Date(+date.slice(0,4),+date.slice(5,7)-1,1);selected=date;render();closeSheets();showToast('저장했습니다')}
+function openEditor(id=null){editingId=id;let e=id?EVENTS.find(x=>x.id===id):{date:isoToday(),type:'헬스/웨이트',title:'헬스/웨이트',start:'',end:'',minutes:null,kcal:null,distance:null,avgHr:null,maxHr:null,gymBrand:'',gymBranch:'',grades:[],note:''};editTitle.textContent=id?'운동 편집':'운동 추가';editKicker.textContent=id?'ACTIVITY EDITOR':'NEW ACTIVITY';deleteBtn.classList.toggle('hidden',!id);fDate.value=e.date||isoToday();fType.value=normalizeType(e.type||'헬스/웨이트');fTitle.value=e.title||'';fStart.value=e.start||'';fEnd.value=e.end||'';fMinutes.value=e.minutes??'';fKcal.value=e.kcal??'';fDistance.value=e.distance??'';fAvgHr.value=e.avgHr??'';fMaxHr.value=e.maxHr??'';fGymBrand.value=e.gymBrand||'';fGymBranch.value=e.gymBranch||'';fGrades.value=(e.grades||[]).join(' ');fNote.value=e.note||'';toggleFields();showSheet(editSheet)}
+function makeId(){return 'USR'+Date.now().toString(36).toUpperCase()}function saveForm(ev){ev.preventDefault();let old=editingId?EVENTS.find(x=>x.id===editingId):null,date=fDate.value,type=normalizeType(fType.value),obj=old?{...old}:{id:makeId(),source:'Manual',merge:'',review:false,gps:false,health:'',insta:'',grades:[]};obj.date=date;obj.month=date.slice(0,7);obj.weekday=weekday(date);obj.type=type;obj.title=fTitle.value.trim()||type;obj.start=fStart.value;obj.end=fEnd.value;obj.minutes=num(fMinutes.value);obj.kcal=type==='클라이밍'?null:num(fKcal.value);obj.distance=type==='클라이밍'?null:num(fDistance.value);obj.avgHr=type==='클라이밍'?null:num(fAvgHr.value);obj.maxHr=type==='클라이밍'?null:num(fMaxHr.value);obj.gymBrand=type==='클라이밍'?fGymBrand.value.trim():'';obj.gymBranch=type==='클라이밍'?fGymBranch.value.trim():'';obj.grades=type==='클라이밍'?fGrades.value.split(/[\s,]+/).map(x=>x.trim()).filter(Boolean):[];obj.note=fNote.value.trim();if(old){EVENTS[EVENTS.findIndex(x=>x.id===old.id)]=obj}else EVENTS.push(obj);saveLocal();current=new Date(+date.slice(0,4),+date.slice(5,7)-1,1);selected=date;render();closeSheets();showToast('저장했습니다')}
 function deleteEvent(){if(!editingId)return;if(!confirm('이 운동 기록을 삭제할까요?'))return;EVENTS=EVENTS.filter(e=>e.id!==editingId);saveLocal();render();closeSheets();showToast('삭제했습니다')}
 function isoToday(){let d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function showToast(msg){let t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),1700)}
 function downloadBlob(content,name,type){let blob=new Blob([content],{type}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},800)}
@@ -272,7 +274,8 @@ async function importJsonFile(file){
       if(typeof x.date!=='string'||x.date.length<10)throw new Error(`${i+1}번째 운동의 날짜 형식 오류`);
       x.month=x.month||x.date.slice(0,7);
       x.id=x.id||('IMP'+i+'_'+x.date.replaceAll('-',''));
-      x.type=x.type||'기타';
+      x.type=normalizeType(x.type||'기타');
+      if((x.title==='하이킹/등산'||x.title==='트레킹'||x.title==='하이킹'||x.title==='등산')&&x.type==='등산/트레킹')x.title='등산/트레킹';
       x.grades=Array.isArray(x.grades)?x.grades:[];
       return x;
     });
