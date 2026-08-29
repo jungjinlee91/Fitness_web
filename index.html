@@ -17,7 +17,7 @@
 @media(min-width:600px){.app{padding-left:35px;padding-right:35px}.hero-title .month{font-size:62px}.hero-title .year{font-size:30px}.day{height:74px}}
 .first-run{margin:22px 0 12px;border:1px solid #2c4b3f;background:linear-gradient(145deg,#0b1511,#0a0e0c);border-radius:20px;padding:20px}.first-run h3{margin:0;font-size:20px}.first-run p{color:#8f9a95;font-size:12px;line-height:1.55;margin:8px 0 16px}.first-run button{width:100%;border:0;border-radius:14px;padding:14px;background:var(--mint);color:#06100c;font-weight:800}.first-run.hidden{display:none!important}</style></head><body>
 <script id="baseData" type="application/json">[]</script><script id="routeData" type="application/json">{}</script>
-<div class="app"><div class="topbar"><div class="brand">MY FITNESS ARCHIVE <span style="color:#5e6a65;font-weight:500;letter-spacing:.08em">v6.1</span></div><div class="top-actions"><button class="pill" id="todayBtn">이번 달</button><button class="round" id="settingsBtn" aria-label="설정">⋯</button><button class="round mint" id="addBtn" aria-label="운동 추가">＋</button></div></div>
+<div class="app"><div class="topbar"><div class="brand">MY FITNESS ARCHIVE <span style="color:#5e6a65;font-weight:500;letter-spacing:.08em">v6.2</span></div><div class="top-actions"><button class="pill" id="todayBtn">이번 달</button><button class="round" id="settingsBtn" aria-label="설정">⋯</button><button class="round mint" id="addBtn" aria-label="운동 추가">＋</button></div></div>
 <section class="hero"><div class="month-nav"><h1 class="hero-title"><span class="month" id="monthLabel"></span><span class="year" id="yearLabel"></span></h1><div class="navs"><button class="navbtn" id="prev" aria-label="이전 달">‹</button><button class="navbtn month-picker-btn" id="monthPickerBtn" aria-label="연·월 선택"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M8 3.5v4M16 3.5v4M4 9.5h16"/><path d="M8 13h2M12 13h2M16 13h1M8 16h2M12 16h2"/></svg></button><button class="navbtn" id="next" aria-label="다음 달">›</button></div></div><div class="recap" id="recapCharts"><div class="mini-chart"><div class="chart-head"><div class="chart-label">DAYS</div><div class="chart-current"><span class="chart-value" id="daysTotal">0</span><span class="chart-unit">DAYS</span></div></div><div class="chart-bars" id="daysChart"></div></div><div class="mini-chart"><div class="chart-head"><div class="chart-label">TIME</div><div class="chart-current"><span class="chart-value" id="hoursTotal">0</span><span class="chart-unit">HRS</span></div></div><div class="chart-bars" id="hoursChart"></div></div><div class="mini-chart"><div class="chart-head"><div class="chart-label">DISTANCE</div><div class="chart-current"><span class="chart-value" id="distanceTotal">0</span><span class="chart-unit">KM</span></div></div><div class="chart-bars" id="distanceChart"></div></div><div class="mini-chart"><div class="chart-head"><div class="chart-label">ENERGY</div><div class="chart-current"><span class="chart-value" id="kcalTotal">0</span><span class="chart-unit">KCAL</span></div></div><div class="chart-bars" id="energyChart"></div></div></div></section>
 <section class="calendar-wrap" id="calendarWrap"><div class="calendar-head"><h2>월간 운동</h2><div class="calendar-tools"><div class="count" id="activityCount"></div><div class="filter-rail" id="typeFilters" aria-label="운동 종류 필터"></div></div></div><div class="weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="calendar" id="calendar"></div></section>
 <section id="firstRun" class="first-run hidden"><h3>개인 운동 데이터 불러오기</h3><p>GitHub에는 앱 화면만 있습니다. 아이폰에 보관한 <b>fitness_data.json</b>을 처음 한 번 선택하면 기록과 GPS 경로가 이 Safari에만 저장됩니다.</p><button id="firstImport">fitness_data.json 선택</button></section><section><div class="history-head"><div><div class="section-kicker">ACTIVITY LOG</div><h2 id="historyTitle"></h2></div><div class="total" id="eventCount"></div></div><div id="history" class="history"></div></section></div>
@@ -48,7 +48,9 @@ function normalizeEvents(arr){return (Array.isArray(arr)?arr:[]).map(function(e)
 const GRADE_COLOR_MAP={
   '🩷':'🩷','❤️':'❤️','❤':'❤️','🧡':'🧡','💛':'💛','💚':'💚','🩵':'🩵','💙':'💙','💜':'💜','🤎':'🤎','🤍':'🤍','🩶':'🩶','🖤':'🖤',
   '🔴':'❤️','🟠':'🧡','🟡':'💛','🟢':'💚','🔵':'💙','🟣':'💜','🟤':'🤎','⚪':'🤍','⚫':'🖤',
-  '🌸':'🩷','🍎':'❤️','🫐':'💙','🍏':'💚','🕸':'🩶','🕸️':'🩶',
+  '🌸':'🩷','🍎':'❤️','🫐':'💙','🍏':'💚',
+  // 피커스의 스파이더맨 난이도처럼 색상과 별개인 특수 난이도는 원형 그대로 보존한다.
+  '🕸':'🕸️','🕸️':'🕸️',
   '분홍':'🩷','핑크':'🩷','빨강':'❤️','주황':'🧡','노랑':'💛','초록':'💚','하늘':'🩵','파랑':'💙','보라':'💜','갈색':'🤎','흰색':'🤍','회색':'🩶','검정':'🖤'
 };
 function gradeSourceLine(text){
@@ -56,47 +58,108 @@ function gradeSourceLine(text){
   return lines.length?lines[0]:'';
 }
 function parseGradeText(text){
+  // 인스타 첫 줄의 표기 규칙:
+  // 색/특수기호 = 난이도, 반복 또는 숫자/xN = 완등 수, ❌/💔 = 미완등.
+  // LV6💔 = LV6 미완등, LV5,4❤️ = LV5/LV4 각 1개 완등.
+  // 💙2💔1처럼 이미 완등 수가 명시된 뒤 실패가 나오면 실패는 별도(난이도 미지정)로 분리한다.
   let s=String(text||'').replace(/\uFE0F/g,'');
   if(!s.trim())return [];
+  let entries=[],seq=0;
+  function pushEntry(symbol,solved,failed,start,special){
+    entries.push({symbol:symbol,solved:solved||0,failed:failed||0,start:start??999999,seq:seq++,special:special||''});
+  }
+
+  // 1) LV 계열을 먼저 해석하고 원문에서 마스킹해서 뒤의 ❤️가 빨강 난이도로 중복 해석되지 않게 한다.
+  let masked=s;
+  let lvRe=/LV\s*(\d+(?:\s*,\s*\d+)*)\s*(💔|❌|❤)?\s*(?:[xX×]\s*)?(\d+)?/giu,m,spans=[];
+  while((m=lvRe.exec(s))){
+    let levels=m[1].split(',').map(x=>x.trim()).filter(Boolean);
+    let status=m[2]||'',count=Number(m[3]||1);
+    levels.forEach(function(lv){
+      let symbol='LV'+lv;
+      if(status==='💔'||status==='❌')pushEntry(symbol,0,count,m.index,'lv');
+      else pushEntry(symbol,count,0,m.index,'lv');
+    });
+    spans.push([m.index,lvRe.lastIndex]);
+  }
+  // 뒤에서부터 치환하면 정규식 인덱스가 유지된다.
+  spans.slice().reverse().forEach(function(r){masked=masked.slice(0,r[0])+' '.repeat(r[1]-r[0])+masked.slice(r[1])});
+
+  // 2) 색상/특수난이도와 실패 토큰을 순서대로 읽는다.
   const colorWord='분홍|핑크|빨강|주황|노랑|초록|하늘|파랑|보라|갈색|흰색|회색|검정';
   const colorEmoji='🩷|❤|🧡|💛|💚|🩵|💙|💜|🤎|🤍|🩶|🖤|🔴|🟠|🟡|🟢|🔵|🟣|🟤|⚪|⚫|🌸|🍎|🫐|🍏|🕸';
-  let tokenRe=new RegExp('(?:('+colorEmoji+')\\(('+colorWord+')\\)\\s*(?:[xX×]\\s*)?(\\d+)?|(❌|💔|'+colorEmoji+'|\\((?:'+colorWord+')\\))\\s*(?:[xX×]\\s*)?(\\d+)?)','gu'),m,tokens=[];
-  while((m=tokenRe.exec(s))){
-    if(m[1]&&m[2]){let heart=GRADE_COLOR_MAP[m[2]];if(heart)tokens.push({kind:'color',heart:heart,count:Number(m[3]||1),explicit:!!m[3],start:m.index,end:tokenRe.lastIndex});continue}
-    let raw=m[4];
-    if(raw==='❌'||raw==='💔'){tokens.push({kind:'fail',count:Number(m[5]||1),start:m.index,end:tokenRe.lastIndex});continue}
-    raw=raw.replace(/[()]/g,'');let heart=GRADE_COLOR_MAP[raw];
-    if(heart)tokens.push({kind:'color',heart:heart,count:Number(m[5]||1),explicit:!!m[5],start:m.index,end:tokenRe.lastIndex});
-  }
-  let order=[],by={},genericFail=0,currentHeart=null;
-  function ensure(h){if(!by[h]){by[h]={symbol:h,solved:0,failed:0};order.push(h)}return by[h]}
-  tokens.forEach(function(tok,i){
-    if(tok.kind==='color'){
-      let item=ensure(tok.heart),next=tokens[i+1],prev=tokens[i-1];
-      currentHeart=tok.heart;
-      // '🤎❌1'처럼 색상 바로 뒤에 실패표시가 붙으면 색상은 난이도 표식이고 완등 1개로 세지 않는다.
-      let nextIsAttachedFail=next&&next.kind==='fail'&&s.slice(tok.end,next.start).trim()==='';
-      let repeatedSame=prev&&prev.kind==='color'&&prev.heart===tok.heart;
-      if(!(nextIsAttachedFail&&!tok.explicit&&!repeatedSame))item.solved+=tok.count;
-    }else{
-      if(currentHeart)ensure(currentHeart).failed+=tok.count;else genericFail+=tok.count;
+  let tokenRe=new RegExp('(?:('+colorEmoji+')\\(('+colorWord+')\\)\\s*(?:[xX×]\\s*)?(\\d+)?|(❌|💔|'+colorEmoji+'|\\((?:'+colorWord+')\\))\\s*(?:[xX×]\\s*)?(\\d+)?)','gu'),tokens=[];
+  while((m=tokenRe.exec(masked))){
+    if(m[1]&&m[2]){
+      let symbol=GRADE_COLOR_MAP[m[2]];
+      if(symbol)tokens.push({kind:'grade',symbol,count:Number(m[3]||1),explicit:!!m[3],start:m.index,end:tokenRe.lastIndex});
+      continue;
     }
+    let raw=m[4];
+    if(raw==='❌'||raw==='💔'){
+      tokens.push({kind:'fail',count:Number(m[5]||1),start:m.index,end:tokenRe.lastIndex});
+      continue;
+    }
+    raw=raw.replace(/[()]/g,'');
+    let symbol=GRADE_COLOR_MAP[raw];
+    if(symbol)tokens.push({kind:'grade',symbol,count:Number(m[5]||1),explicit:!!m[5],start:m.index,end:tokenRe.lastIndex});
+  }
+
+  let order=[],by={},genericFail=0;
+  function ensure(symbol,start){
+    if(!by[symbol]){by[symbol]={symbol,solved:0,failed:0,start:start??999999,seq:seq++};order.push(symbol)}
+    else if(start<by[symbol].start)by[symbol].start=start;
+    return by[symbol];
+  }
+  tokens.forEach(function(tok,i){
+    if(tok.kind!=='grade')return;
+    let item=ensure(tok.symbol,tok.start),next=tokens[i+1],prev=tokens[i-1];
+    let nextAttachedFail=next&&next.kind==='fail'&&masked.slice(tok.end,next.start).trim()==='';
+    let repeatedSame=prev&&prev.kind==='grade'&&prev.symbol===tok.symbol;
+    // 완등수가 없는 난이도 표시 뒤에 바로 실패가 붙은 경우(🤎❌1)는 완등으로 세지 않는다.
+    if(!(nextAttachedFail&&!tok.explicit&&!repeatedSame))item.solved+=tok.count;
   });
-  let out=order.map(function(h){return by[h]});
-  if(genericFail)out.push({symbol:'❌',solved:0,failed:genericFail,generic:true});
-  return out;
+  tokens.forEach(function(tok,i){
+    if(tok.kind!=='fail')return;
+    let prev=tokens[i-1];
+    let attached=prev&&prev.kind==='grade'&&masked.slice(prev.end,tok.start).trim()==='';
+    // 💙2💔1: 앞 난이도에 이미 완등 수가 명시되어 있으면 실패는 별도 미완등으로 분리.
+    // 🤎❌1: 앞 난이도에 완등 수가 없으면 해당 난이도의 미완등으로 연결.
+    if(attached&&!prev.explicit)ensure(prev.symbol,prev.start).failed+=tok.count;
+    else genericFail+=tok.count;
+  });
+  order.forEach(function(symbol){entries.push(by[symbol])});
+  if(genericFail)pushEntry('❌',0,genericFail,999998,'generic');
+
+  // 동일 LV/난이도가 여러 경로에서 들어왔으면 합친다.
+  let merged=[],idx={};
+  entries.sort((a,b)=>(a.start-b.start)||(a.seq-b.seq)).forEach(function(x){
+    let key=x.special==='generic'?'__GENERIC__':x.symbol;
+    if(idx[key]==null){idx[key]=merged.length;merged.push({...x})}
+    else{let y=merged[idx[key]];y.solved+=x.solved;y.failed+=x.failed;y.start=Math.min(y.start,x.start)}
+  });
+  return merged;
 }
 function climbingGradeSummary(e){
   if(!e||e.type!=='클라이밍')return [];
-  // 사용자가 편집창에서 xN/숫자/실패표시까지 직접 입력한 경우 그 값을 우선한다.
   let rawGrades=Array.isArray(e.grades)?e.grades.join(' '):String(e.grades||'');
-  let manualLike=e.source==='Manual'||/[xX×\d❌💔]/u.test(rawGrades);
-  let parsed=manualLike?parseGradeText(rawGrades):[];
-  if(!parsed.length)parsed=parseGradeText(gradeSourceLine(e.insta||''));
-  if(!parsed.length)parsed=parseGradeText(rawGrades);
-  return parsed;
+  // Instagram 원문이 있으면 원문 첫 줄을 최우선으로 다시 해석한다.
+  // 사용자가 편집창에서 직접 수정한 경우에만 gradeOverride 값을 우선한다.
+  if(e.gradeOverride){let p=parseGradeText(rawGrades);if(p.length)return p}
+  let p=parseGradeText(gradeSourceLine(e.insta||''));
+  if(p.length)return p;
+  return parseGradeText(rawGrades);
 }
-function climbingGradeBadges(e){return climbingGradeSummary(e).map(function(g){if(g.generic)return '❌×'+g.failed;let a=[];if(g.solved)a.push(g.symbol+'×'+g.solved);else a.push(g.symbol);if(g.failed)a.push('❌×'+g.failed);return a.join(' · ')})}
+function climbingGradeBadges(e){
+  return climbingGradeSummary(e).map(function(g){
+    if(g.special==='generic'||g.symbol==='❌')return '❌×'+g.failed;
+    let a=[];
+    if(g.solved)a.push(g.symbol+'×'+g.solved);
+    else a.push(g.symbol);
+    if(g.failed)a.push('❌×'+g.failed);
+    return a.join(' · ');
+  })
+}
 function loadSaved(){try{let s=localStorage.getItem(STORAGE_KEY);if(!s)return clone(BASE_EVENTS);let p=JSON.parse(s);if(Array.isArray(p))return p;if(p&&Array.isArray(p.events)){ROUTES=(p.routes&&typeof p.routes==='object')?p.routes:{};return p.events}return clone(BASE_EVENTS)}catch(e){storageOK=false;return clone(BASE_EVENTS)}}
 function saveLocal(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({schema:2,events:EVENTS,routes:ROUTES}));storageOK=true;return true}catch(e){storageOK=false;return false}}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function num(v){return v===''||v==null?null:Number(v)}function pad(n){return String(n).padStart(2,'0')}function monthKey(){return current.getFullYear()+'-'+pad(current.getMonth()+1)}function fmtMin(m){if(m==null||Number.isNaN(m))return '';let h=Math.floor(m/60),mi=Math.round(m%60);return h?`${h}시간 ${mi?mi+'분':''}`:`${mi}분`}function weekday(date){return ['일','월','화','수','목','금','토'][new Date(date+'T00:00:00').getDay()]}
 function typeShort(t){return {'헬스/웨이트':'웨','클라이밍':'클','등산/트레킹':'산','걷기/산책':'걷','러닝':'런','라이딩':'라','실내 사이클링':'실','수영':'수','암벽등반':'암','멀티스포츠':'3종','계단':'계','농구':'농','기타':'기'}[normalizeType(t)]||String(t||'기타').slice(0,1)}
@@ -323,7 +386,7 @@ function showSheet(el){
 }function closeSheets(){let returnToCalendar=sheetFromCalendar;if(overlay)overlay.classList.add('hidden');document.querySelectorAll('.sheet').forEach(function(x){x.classList.add('hidden')});document.body.style.overflow='';activeEventId=null;editingId=null;sheetFromCalendar=false;sheetAnchorDate=null;if(returnToCalendar)setTimeout(scrollCalendarHome,25)}
 function fillTypes(){fType.innerHTML=TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}function toggleFields(){let climb=fType.value==='클라이밍';document.querySelectorAll('.climb-only').forEach(x=>x.classList.toggle('hidden',!climb));document.querySelectorAll('.non-climb').forEach(x=>x.classList.toggle('hidden',climb))}
 function openEditor(id=null){editingId=id;let e=id?EVENTS.find(x=>x.id===id):{date:isoToday(),type:'헬스/웨이트',title:'헬스/웨이트',start:'',end:'',minutes:null,kcal:null,distance:null,avgHr:null,maxHr:null,gymBrand:'',gymBranch:'',grades:[],note:''};editTitle.textContent=id?'운동 편집':'운동 추가';editKicker.textContent=id?'ACTIVITY EDITOR':'NEW ACTIVITY';deleteBtn.classList.toggle('hidden',!id);fDate.value=e.date||isoToday();fType.value=normalizeType(e.type||'헬스/웨이트');fTitle.value=e.title||'';fStart.value=e.start||'';fEnd.value=e.end||'';fMinutes.value=e.minutes??'';fKcal.value=e.kcal??'';fDistance.value=e.distance??'';fAvgHr.value=e.avgHr??'';fMaxHr.value=e.maxHr??'';fGymBrand.value=e.gymBrand||'';fGymBranch.value=e.gymBranch||'';fGrades.value=e.type==='클라이밍'?(climbingGradeBadges(e).join(' ')):(e.grades||[]).join(' ');fNote.value=e.note||'';toggleFields();showSheet(editSheet)}
-function makeId(){return 'USR'+Date.now().toString(36).toUpperCase()}function saveForm(ev){ev.preventDefault();let old=editingId?EVENTS.find(x=>x.id===editingId):null,date=fDate.value,type=normalizeType(fType.value),obj=old?{...old}:{id:makeId(),source:'Manual',merge:'',review:false,gps:false,health:'',insta:'',grades:[]};obj.date=date;obj.month=date.slice(0,7);obj.weekday=weekday(date);obj.type=type;obj.title=fTitle.value.trim()||type;obj.start=fStart.value;obj.end=fEnd.value;obj.minutes=num(fMinutes.value);obj.kcal=type==='클라이밍'?null:num(fKcal.value);obj.distance=type==='클라이밍'?null:num(fDistance.value);obj.avgHr=type==='클라이밍'?null:num(fAvgHr.value);obj.maxHr=type==='클라이밍'?null:num(fMaxHr.value);obj.gymBrand=type==='클라이밍'?fGymBrand.value.trim():'';obj.gymBranch=type==='클라이밍'?fGymBranch.value.trim():'';obj.grades=type==='클라이밍'?fGrades.value.split(/[\s,]+/).map(x=>x.trim()).filter(Boolean):[];obj.note=fNote.value.trim();if(old){EVENTS[EVENTS.findIndex(x=>x.id===old.id)]=obj}else EVENTS.push(obj);saveLocal();current=new Date(+date.slice(0,4),+date.slice(5,7)-1,1);selected=date;render();closeSheets();showToast('저장했습니다')}
+function makeId(){return 'USR'+Date.now().toString(36).toUpperCase()}function saveForm(ev){ev.preventDefault();let old=editingId?EVENTS.find(x=>x.id===editingId):null,date=fDate.value,type=normalizeType(fType.value),obj=old?{...old}:{id:makeId(),source:'Manual',merge:'',review:false,gps:false,health:'',insta:'',grades:[]};obj.date=date;obj.month=date.slice(0,7);obj.weekday=weekday(date);obj.type=type;obj.title=fTitle.value.trim()||type;obj.start=fStart.value;obj.end=fEnd.value;obj.minutes=num(fMinutes.value);obj.kcal=type==='클라이밍'?null:num(fKcal.value);obj.distance=type==='클라이밍'?null:num(fDistance.value);obj.avgHr=type==='클라이밍'?null:num(fAvgHr.value);obj.maxHr=type==='클라이밍'?null:num(fMaxHr.value);obj.gymBrand=type==='클라이밍'?fGymBrand.value.trim():'';obj.gymBranch=type==='클라이밍'?fGymBranch.value.trim():'';obj.grades=type==='클라이밍'?fGrades.value.split(/[\s]+/).map(x=>x.trim()).filter(Boolean):[];obj.gradeOverride=type==='클라이밍';obj.note=fNote.value.trim();if(old){EVENTS[EVENTS.findIndex(x=>x.id===old.id)]=obj}else EVENTS.push(obj);saveLocal();current=new Date(+date.slice(0,4),+date.slice(5,7)-1,1);selected=date;render();closeSheets();showToast('저장했습니다')}
 function deleteEvent(){if(!editingId)return;if(!confirm('이 운동 기록을 삭제할까요?'))return;EVENTS=EVENTS.filter(e=>e.id!==editingId);saveLocal();render();closeSheets();showToast('삭제했습니다')}
 function isoToday(){let d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function showToast(msg){let t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),1700)}
 function downloadBlob(content,name,type){let blob=new Blob([content],{type}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},800)}
